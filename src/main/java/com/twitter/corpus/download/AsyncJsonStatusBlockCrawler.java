@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 import com.google.common.base.Preconditions;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.AsyncHttpClientConfig;
 import com.ning.http.client.Response;
 import com.twitter.corpus.data.Status;
 import com.twitter.corpus.demo.ReadStatuses;
@@ -30,6 +31,7 @@ import com.twitter.corpus.demo.ReadStatuses;
 public class AsyncJsonStatusBlockCrawler {
   private static final Logger LOG = Logger.getLogger(AsyncJsonStatusBlockCrawler.class);
   private static final int MAX_RETRY_ATTEMPTS = 3;
+  private static final int MAX_PARALLEL_CONNECTIONS = 5;
 
   public static final String DEFAULT_URL_PREFIX = "http://twitter.com";
 
@@ -45,10 +47,14 @@ public class AsyncJsonStatusBlockCrawler {
   private final String prefix;
 
   public AsyncJsonStatusBlockCrawler(File file, String output) throws IOException {
-    this(file, output, DEFAULT_URL_PREFIX);
+    this(file, output, DEFAULT_URL_PREFIX, MAX_PARALLEL_CONNECTIONS);
   }
 
   public AsyncJsonStatusBlockCrawler(File file, String output, String prefix) throws IOException {
+    this(file, output, prefix, MAX_PARALLEL_CONNECTIONS);
+  }
+
+  public AsyncJsonStatusBlockCrawler(File file, String output, String prefix, int maxParallelConnections) throws IOException {
     this.file = Preconditions.checkNotNull(file);
     this.output = Preconditions.checkNotNull(output);
     this.prefix = Preconditions.checkNotNull(prefix);
@@ -57,7 +63,10 @@ public class AsyncJsonStatusBlockCrawler {
       throw new IOException(file + " does not exist!");
     }
 
-    this.asyncHttpClient = new AsyncHttpClient();
+    AsyncHttpClientConfig httpClientConfig = new AsyncHttpClientConfig.Builder()
+      .setMaximumConnectionsPerHost(maxParallelConnections)
+      .build();
+    this.asyncHttpClient = new AsyncHttpClient(httpClientConfig);
   }
 
   public static String getUrl(String prefix, long id, String username) {

@@ -24,6 +24,7 @@ import org.apache.log4j.Logger;
 import com.google.common.base.Preconditions;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.AsyncHttpClientConfig;
 import com.ning.http.client.Response;
 import com.twitter.corpus.data.HtmlStatus;
 import com.twitter.corpus.demo.ReadStatuses;
@@ -34,6 +35,7 @@ public class AsyncHtmlStatusBlockCrawler {
   private static final Logger LOG = Logger.getLogger(AsyncHtmlStatusBlockCrawler.class);
   private static final int MAX_RETRY_ATTEMPTS = 3;
   private static final int TWEET_BLOCK_SIZE = 500;
+  private static final int MAX_PARALLEL_CONNECTIONS = 10;
 
   private final File file;
   private final String output;
@@ -47,6 +49,10 @@ public class AsyncHtmlStatusBlockCrawler {
       new ConcurrentSkipListMap<PairOfLongString, HtmlStatus>();
 
   public AsyncHtmlStatusBlockCrawler(File file, String output) throws IOException {
+    this(file, output, MAX_PARALLEL_CONNECTIONS);
+  }
+
+  public AsyncHtmlStatusBlockCrawler(File file, String output, int maxParallelConnections) throws IOException {
     this.file = Preconditions.checkNotNull(file);
     this.output = Preconditions.checkNotNull(output);
 
@@ -54,7 +60,10 @@ public class AsyncHtmlStatusBlockCrawler {
       throw new IOException(file + " does not exist!");
     }
 
-    this.asyncHttpClient = new AsyncHttpClient();
+    AsyncHttpClientConfig httpClientConfig = new AsyncHttpClientConfig.Builder()
+      .setMaximumConnectionsPerHost(maxParallelConnections)
+      .build();
+    this.asyncHttpClient = new AsyncHttpClient(httpClientConfig);
   }
 
   public static String getUrl(long id, String username) {
